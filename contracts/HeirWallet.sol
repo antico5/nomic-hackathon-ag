@@ -19,9 +19,9 @@ contract HeirWallet is Ownable {
 
     uint public claimStarted;
 
-    mapping(address => mapping(address => bool)) heirsWithdrawn; // heir => asset => bool
+    mapping(address => mapping(address => bool)) public heirsWithdrawn; // heir => asset => bool
 
-    mapping(address => uint) originalAssetBalance;
+    mapping(address => uint) public originalAssetBalance;
 
     uint public immutable inactivityThreshold;
     uint public immutable vetoThreshold;
