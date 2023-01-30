@@ -19,6 +19,8 @@ describe("HeirWallet", function () {
       vetoThreshold
     );
 
+    expect(await contract.status()).to.equal(1);
+
     const mockCallableFactory = await ethers.getContractFactory(
       "MockCallableContract"
     );
