@@ -86,4 +86,38 @@ contract HeirWallet is Ownable {
             );
         }
     }
+
+    function addHeir(address a) public onlyOwner {
+      heirs[a] = true;
+      heirCount = heirCount + 1;
+    }
+
+    function removeHeir(address a) public onlyOwner {
+      heirs[a] = false;
+      heirCount = heirCount - 1;
+    }
+
+    /// For an heir to claim that the owner has died
+    function initiateClaim() public {
+      require(heirs[msg.sender] == true);
+      require(status == ALIVE);
+      require(lastOwnerCall + inactivityThreshold < block.timestamp);
+      status = DEATH_CLAIMED;
+      claimStarted = block.timestamp;
+    }
+
+    /// For an heir to assert that a claim of death has gone undisputed
+    function finalizeClaim() public {
+      require(heirs[msg.sender] == true);
+      require(status == DEATH_CLAIMED);
+      require(claimStarted + vetoThreshold < block.timestamp);
+      status = DEAD;
+    }
+
+    /// For an owner or heir to veto a claim of death
+    function vetoClaim() public {
+      require(heirs[msg.sender] == true || msg.sender == owner());
+      require(status == DEATH_CLAIMED);
+      status = ALIVE;
+    }
 }
