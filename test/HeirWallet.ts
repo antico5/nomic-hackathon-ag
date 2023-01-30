@@ -1,4 +1,4 @@
-import { expect, AssertionError } from "chai";
+import { expect } from "chai";
 import { ethers } from "hardhat";
 import { smock } from "@defi-wonderland/smock";
 
