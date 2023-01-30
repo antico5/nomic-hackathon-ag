@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 uint constant ALIVE = 1;
 
-contract HeirWallet {
+contract HeirWallet is Ownable {
     uint public status;
 
     mapping(address => bool) public heirs;
@@ -23,4 +25,10 @@ contract HeirWallet {
         inactivityThreshold = _inactivityThreshold;
         vetoThreshold = _vetoThreshold;
     }
+
+    function call(
+        address _dest,
+        uint _value,
+        bytes memory data
+    ) public onlyOwner {}
 }
