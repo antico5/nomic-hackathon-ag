@@ -31,6 +31,7 @@ contract HeirWallet is Ownable {
     constructor(uint _inactivityThreshold, uint _vetoThreshold) {
         inactivityThreshold = _inactivityThreshold;
         vetoThreshold = _vetoThreshold;
+        status = ALIVE;
     }
 
     function call(
