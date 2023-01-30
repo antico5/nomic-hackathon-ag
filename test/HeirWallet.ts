@@ -311,23 +311,15 @@ describe("HeirWallet", function () {
   });
 
   describe("removeHeir", function () {
-    async function setupHeir() {
-      const { heir1, contract } = await setup();
-      await contract.addHeir(heir1.address);
-      expect((await contract.heirs(heir1.address)) === true);
-      expect((await contract.heirCount()).eq(1));
-      return { heir1, contract };
-    }
-
     it("should remove the heir", async () => {
-      const { heir1, contract } = await setupHeir();
+      const { heir1, contract } = await setup();
       await contract.removeHeir(heir1.address);
       expect((await contract.heirs(heir1.address)) === false);
       expect((await contract.heirCount()).eq(0));
     });
 
     it("should revert if a non-owner tries to remove themselves as an heir", async () => {
-      const { heir1, contract } = await setupHeir();
+      const { heir1, contract } = await setup();
       await expect(
         contract.connect(heir1).removeHeir(heir1.address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
@@ -335,27 +327,96 @@ describe("HeirWallet", function () {
   });
 
   describe("initiateClaim", function () {
-    it("should allow initiation of a claim", () => {});
-    it("should revert if called by the owner", () => {});
-    it("should revert if called by a non-participant", () => {});
-    it("should revert if the wallet status is DEATH_CLAIMED", () => {});
-    it("should revert if the wallet status is DEAD", () => {});
-    it("should revert if the owner has invoked call() too recently", () => {});
+    it("should allow initiation of a claim", async () => {
+      const { heir1, contract } = await setup();
+      await contract.setVariable(
+        "lastOwnerCall",
+        BigInt(
+          Math.round(new Date().getTime()/1000)
+          - await contract.inactivityThreshold()
+          - 1
+        )
+      );
+      await contract.connect(heir1).initiateClaim();
+      expect(await contract.status()).to.eq(2);
+    });
+
+    it("should revert if called by the owner", async () => {
+      const { contract } = await setup();
+      await expect(contract.initiateClaim())
+        .to.be.revertedWith("caller is not heir");
+      expect(await contract.status()).to.equal(1);
+    });
+
+    it("should revert if called by a non-participant", async () => {
+      const { contract, randomUser } = await setup();
+      await expect(contract.connect(randomUser).initiateClaim())
+        .to.be.revertedWith("caller is not heir");
+      expect(await contract.status()).to.equal(1);
+    });
+
+    it("should revert if the wallet status is DEATH_CLAIMED", async () => {
+      const { contract, heir1 } = await setup();
+      await contract.setVariable("status", BigInt(2));
+      await expect(contract.connect(heir1).initiateClaim())
+        .to.be.revertedWith("wallet is not alive");
+      expect(await contract.status()).to.equal(2);
+    });
+
+    it("should revert if the wallet status is DEAD", async () => {
+      const { contract, heir1 } = await setup();
+      await contract.setVariable("status", 3n);
+      await expect(contract.connect(heir1).initiateClaim())
+        .to.be.revertedWith("wallet is not alive");
+    });
+
+    it("should revert if the owner has invoked call() too recently", async () => {
+      const { contract, owner, heir1, mockCallableContract } = await setup();
+
+      await owner.sendTransaction({
+        to: contract.address,
+        value: 99,
+      });
+
+      await contract.call(mockCallableContract.address, 99, "0x12");
+
+      await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith("owner invoked call() too recently");
+
+      expect(await contract.status()).to.eq(1);
+    });
   });
 
   describe("finalizeClaim", function () {
-    it("should allow finalization of a claim", () => {});
-    it("should revert if called by the owner", () => {});
-    it("should revert if called by a non-participant", () => {});
-    it("should revert if the wallet status is ALIVE", () => {});
-    it("should revert if the wallet status is DEAD", () => {});
-    it("should revert if the claim has been vetoed", () => {});
+    it("should allow finalization of a claim", async () => {
+    });
+
+    it("should revert if called by the owner", async () => {
+    });
+
+    it("should revert if called by a non-participant", async () => {
+    });
+
+    it("should revert if the wallet status is ALIVE", async () => {
+    });
+
+    it("should revert if the wallet status is DEAD", async () => {
+    });
+
+    it("should revert if the claim has been vetoed", async () => {
+    });
   });
 
   describe("vetoClaim", function () {
-    it("should allow the owner to veto a claim", () => {});
-    it("should allow a second heir to veto a claim", () => {});
-    it("should revert if the wallet status is ALIVE", () => {});
-    it("should revert if the wallet status is DEAD", () => {});
+    it("should allow the owner to veto a claim", async () => {
+    });
+
+    it("should allow a second heir to veto a claim", async () => {
+    });
+
+    it("should revert if the wallet status is ALIVE", async () => {
+    });
+
+    it("should revert if the wallet status is DEAD", async () => {
+    });
   });
 });
