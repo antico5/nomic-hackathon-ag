@@ -31,4 +31,19 @@ describe("HeirWallet", function () {
       expect(await contract.owner()).to.equal(owner.address);
     });
   });
+
+  describe("addHeir", function () {
+  });
+
+  describe("removeHeir", function () {
+  });
+
+  describe("initiateClaim", function () {
+  });
+
+  describe("finalizeClaim", function () {
+  });
+
+  describe("vetoClaim", function () {
+  });
 });
