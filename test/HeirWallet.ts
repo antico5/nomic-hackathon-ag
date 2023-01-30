@@ -390,7 +390,7 @@ describe("HeirWallet", function () {
 
       await contract.call(mockCallableContract.address, 99, "0x12");
 
-      await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith("owner invoked call() too recently");
+      await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith("owner has invoked call() too recently");
 
       expect(await contract.status()).to.eq(1);
     });
