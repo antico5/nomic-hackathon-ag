@@ -100,8 +100,7 @@ contract HeirWallet is Ownable {
     }
 
     /// For an heir to claim that the owner has died
-    function initiateClaim() public {
-        require(heirs[msg.sender] == true);
+    function initiateClaim() public onlyHeir {
         require(status == ALIVE);
         require(lastOwnerCall + inactivityThreshold < block.timestamp);
         status = DEATH_CLAIMED;
@@ -109,8 +108,7 @@ contract HeirWallet is Ownable {
     }
 
     /// For an heir to assert that a claim of death has gone undisputed
-    function finalizeClaim() public {
-        require(heirs[msg.sender] == true);
+    function finalizeClaim() public onlyHeir {
         require(status == DEATH_CLAIMED);
         require(claimStarted + vetoThreshold < block.timestamp);
         status = DEAD;
