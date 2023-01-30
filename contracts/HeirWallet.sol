@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 uint constant ALIVE = 1;
+uint constant DEATH_CLAIMED = 2;
+uint constant DEAD = 3;
 
 contract HeirWallet is Ownable {
     uint public status;
