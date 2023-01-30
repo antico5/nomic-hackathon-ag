@@ -2,46 +2,6 @@ import { expect, AssertionError } from "chai";
 import { ethers } from "hardhat";
 import { smock } from "@defi-wonderland/smock";
 
-export async function expectErrorAsync(
-  f: () => Promise<any>,
-  errorMessage?: string | RegExp
-) {
-  const noError = new AssertionError("Async error expected but not thrown");
-  const notExactMatch = new AssertionError(
-    `Async error should have had message "${errorMessage}" but got "`
-  );
-
-  const notRegexpMatch = new AssertionError(
-    `Async error should have matched regex ${errorMessage} but got "`
-  );
-
-  try {
-    await f();
-  } catch (err) {
-    if (errorMessage === undefined) {
-      return;
-    }
-
-    if (err instanceof Error) {
-      if (typeof errorMessage === "string") {
-        if (err.message !== errorMessage) {
-          notExactMatch.message += `${err.message}"`;
-          throw notExactMatch;
-        }
-      } else {
-        if (errorMessage.exec(err.message) === null) {
-          notRegexpMatch.message += `${err.message}"`;
-          throw notRegexpMatch;
-        }
-      }
-    }
-
-    return;
-  }
-
-  throw noError;
-}
-
 describe("HeirWallet", function () {
   async function setup() {
     // Contracts are deployed using the first signer/account by default
@@ -167,7 +127,7 @@ describe("HeirWallet", function () {
 
     it("should revert if a non-owner tries to add themselves as an heir", async () => {
       const { heir1 , contract } = await setup();
-      await expectErrorAsync(() => contract.connect(heir1).addHeir(heir1.address), "VM Exception while processing transaction: reverted with reason string 'Ownable: caller is not the owner'");
+      await expect(contract.connect(heir1).addHeir(heir1.address)).to.be.revertedWith("Ownable: caller is not the owner");
       expect(await contract.heirs(heir1.address) === false);
       expect((await contract.heirCount()).eq(1))
     });
@@ -192,7 +152,7 @@ describe("HeirWallet", function () {
 
     it("should revert if a non-owner tries to remove themselves as an heir", async () => {
       const { heir1, contract } = await setupHeir();
-      await expectErrorAsync(() => contract.connect(heir1).removeHeir(heir1.address), "VM Exception while processing transaction: reverted with reason string 'Ownable: caller is not the owner'");
+      await expect(contract.connect(heir1).removeHeir(heir1.address)).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 
