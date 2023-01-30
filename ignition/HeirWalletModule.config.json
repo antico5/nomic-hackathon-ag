@@ -1,0 +1,4 @@
+{
+  "inactivityThreshold": 5184000,
+  "vetoThreshold": 2592000
+}

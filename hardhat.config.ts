@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "@ignored/hardhat-ignition";
 
 const config: HardhatUserConfig = {
   solidity: {
