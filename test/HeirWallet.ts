@@ -1,5 +1,6 @@
 import { expect, AssertionError } from "chai";
 import { ethers } from "hardhat";
+import { smock } from "@defi-wonderland/smock";
 
 export async function expectErrorAsync(
   f: () => Promise<any>,
@@ -50,7 +51,7 @@ describe("HeirWallet", function () {
 
     const vetoThreshold = 1 * 30 * 24 * 60 * 60; // 1 month
 
-    const contractFactory = await ethers.getContractFactory("HeirWallet");
+    const contractFactory = await smock.mock("HeirWallet");
     const contract = await contractFactory.deploy(
       inactivityThreshold,
       vetoThreshold
@@ -61,6 +62,12 @@ describe("HeirWallet", function () {
     );
     const mockCallableContract = await mockCallableFactory.deploy();
 
+    const provider = ethers.provider;
+
+    await contract.addHeir(heir1.address);
+    await contract.addHeir(heir2.address);
+    await contract.addHeir(heir3.address);
+
     return {
       owner,
       heir1,
@@ -70,6 +77,7 @@ describe("HeirWallet", function () {
       contract,
       contractFactory,
       mockCallableContract,
+      provider,
     };
   }
 
@@ -92,11 +100,61 @@ describe("HeirWallet", function () {
   });
 
   describe("call", function () {
-    // it("is only callable by the owner", async () => {
-    //   const { randomUser, contract, mockCallableContract } = await setup();
-    //   await randomUser.sendTransaction({ to: contract.address, value: 1 });
-    //   // await contract.connect(randomUser).call(mockCallableContract.address);
-    // });
+    it("is only callable by the owner", async () => {
+      const { randomUser, contract, mockCallableContract } = await setup();
+      await expect(
+        contract
+          .connect(randomUser)
+          .call(mockCallableContract.address, 0, "0x00")
+      ).to.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("calls the given contract with passed data and value", async () => {
+      const { owner, provider, contract, mockCallableContract } = await setup();
+
+      await owner.sendTransaction({
+        to: contract.address,
+        value: 99,
+      });
+
+      await contract.call(mockCallableContract.address, 99, "0x12");
+
+      expect(await mockCallableContract.lastData()).to.eq("0x12");
+      expect(await mockCallableContract.lastValue()).to.eq(99);
+      expect(await provider.getBalance(mockCallableContract.address)).to.eq(99);
+    });
+  });
+
+  describe("distributeEther", function () {
+    it("is only callable when the wallet is dead", async () => {
+      const { contract, heir1 } = await setup();
+      await contract.setVariable("status", 1);
+
+      await expect(contract.connect(heir1).distributeEther()).to.revertedWith(
+        "wallet is not dead"
+      );
+
+      await contract.setVariable("status", 2);
+
+      await expect(contract.connect(heir1).distributeEther()).to.revertedWith(
+        "wallet is not dead"
+      );
+
+      await contract.setVariable("status", 3);
+
+      await contract.connect(heir1).distributeEther();
+    });
+
+    it("is only callable by heirs", async () => {
+      const { owner, contract, heir1 } = await setup();
+      await contract.setVariable("status", 3);
+
+      await expect(contract.connect(owner).distributeEther()).to.revertedWith(
+        "caller is not heir"
+      );
+
+      await contract.connect(heir1).distributeEther();
+    });
   });
 
   describe("addHeir", function () {
