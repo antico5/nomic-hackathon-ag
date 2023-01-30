@@ -87,11 +87,13 @@ contract HeirWallet is Ownable {
         }
     }
 
+    /// For the owner to add an heir
     function addHeir(address a) public onlyOwner {
         heirs[a] = true;
         heirCount = heirCount + 1;
     }
 
+    /// For the owner to remove an heir
     function removeHeir(address a) public onlyOwner {
         heirs[a] = false;
         heirCount = heirCount - 1;
