@@ -41,6 +41,7 @@ contract HeirWallet is Ownable {
     ) public onlyOwner {
         (bool success, ) = _dest.call{value: _value}(_data);
         require(success, "call failed");
+        lastOwnerCall = block.timestamp;
     }
 
     modifier onlyHeir() {

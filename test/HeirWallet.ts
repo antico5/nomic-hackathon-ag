@@ -91,6 +91,16 @@ describe("HeirWallet", function () {
       expect(await mockCallableContract.lastValue()).to.eq(99);
       expect(await provider.getBalance(mockCallableContract.address)).to.eq(99);
     });
+
+    it("updates the lastOwnerCall variable to block timestamp", async () => {
+      const { provider, contract, mockCallableContract } = await setup();
+
+      const recpt = await contract.call(mockCallableContract.address, 0, "0x");
+      const block = await provider.getBlock(recpt.blockHash);
+      const timestamp = block.timestamp;
+
+      expect(await contract.lastOwnerCall()).to.eq(timestamp);
+    });
   });
 
   describe("distributeEther", function () {
