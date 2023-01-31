@@ -91,6 +91,7 @@ contract HeirWallet is Ownable {
 
     /// For the owner to add an heir
     function addHeir(address a) public onlyOwner {
+        require(!heirs[a], "already an heir");
         heirs[a] = true;
         heirCount = heirCount + 1;
     }

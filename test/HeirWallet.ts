@@ -304,10 +304,10 @@ describe("HeirWallet", function () {
 
   describe("addHeir", function () {
     it("should add the heir", async () => {
-      const { heir1, contract } = await setup();
-      await contract.addHeir(heir1.address);
-      expect((await contract.heirs(heir1.address)) === true);
-      expect((await contract.heirCount()).eq(1));
+      const { randomUser, contract } = await setup();
+      await contract.addHeir(randomUser.address);
+      expect((await contract.heirs(randomUser.address)) === true);
+      expect(await contract.heirCount()).to.eq(4);
     });
 
     it("should revert if a non-owner tries to add themselves as an heir", async () => {
@@ -316,7 +316,14 @@ describe("HeirWallet", function () {
         contract.connect(heir1).addHeir(heir1.address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
       expect((await contract.heirs(heir1.address)) === false);
-      expect((await contract.heirCount()).eq(1));
+      expect(await contract.heirCount()).eq(3);
+    });
+
+    it("should revert if the heir has already been added", async () => {
+      const { heir1, contract } = await setup();
+      await expect(contract.addHeir(heir1.address)).to.be.revertedWith("already an heir");
+      expect(await contract.heirs(heir1.address)).to.eq(true);
+      expect(await contract.heirCount()).eq(3);
     });
   });
 
