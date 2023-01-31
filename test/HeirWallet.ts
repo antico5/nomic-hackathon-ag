@@ -352,17 +352,13 @@ describe("HeirWallet", function () {
 
   describe("initiateClaim", function () {
     it("should allow initiation of a claim", async () => {
-      const { heir1, contract } = await setup();
-      await contract.setVariable(
-        "lastOwnerCall",
-        BigInt(
-          Math.round(new Date().getTime()/1000)
-          - await contract.inactivityThreshold()
-          - 1
-        )
-      );
-      await contract.connect(heir1).initiateClaim();
+      const { heir1, contract, provider } = await setup();
+      const receipt = await contract.connect(heir1).initiateClaim();
       expect(await contract.status()).to.eq(2);
+
+      const block = await provider.getBlock(receipt.blockHash);
+      const timestamp = block.timestamp;
+      expect(await contract.claimStarted()).to.eq(timestamp);
     });
 
     it("should revert if called by the owner", async () => {
@@ -377,6 +373,7 @@ describe("HeirWallet", function () {
       await expect(contract.connect(randomUser).initiateClaim())
         .to.be.revertedWith("caller is not heir");
       expect(await contract.status()).to.equal(1);
+      expect(await contract.claimStarted()).to.eq(0);
     });
 
     it("should revert if the wallet status is DEATH_CLAIMED", async () => {
@@ -385,6 +382,7 @@ describe("HeirWallet", function () {
       await expect(contract.connect(heir1).initiateClaim())
         .to.be.revertedWith("wallet is not alive");
       expect(await contract.status()).to.equal(2);
+      expect(await contract.claimStarted()).to.eq(0);
     });
 
     it("should revert if the wallet status is DEAD", async () => {
@@ -392,6 +390,7 @@ describe("HeirWallet", function () {
       await contract.setVariable("status", 3n);
       await expect(contract.connect(heir1).initiateClaim())
         .to.be.revertedWith("wallet is not alive");
+      expect(await contract.claimStarted()).to.eq(0);
     });
 
     it("should revert if the owner has invoked call() too recently", async () => {
@@ -407,6 +406,7 @@ describe("HeirWallet", function () {
       await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith("owner has invoked call() too recently");
 
       expect(await contract.status()).to.eq(1);
+      expect(await contract.claimStarted()).to.eq(0);
     });
   });
 
