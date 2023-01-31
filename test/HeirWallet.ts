@@ -421,17 +421,43 @@ describe("HeirWallet", function () {
   });
 
   describe("finalizeClaim", function () {
-    it("should allow finalization of a claim", async () => {});
+    it("should allow finalization of a claim", async () => {
+      const { heir1, contract } = await setup();
+      await contract.setVariable("status", DEATH_CLAIMED);
+      await contract.connect(heir1).finalizeClaim();
+      expect(await contract.status()).to.eq(DEAD);
+    });
 
-    it("should revert if called by the owner", async () => {});
+    it("should revert if called by the owner", async () => {
+      const { contract } = await setup();
+      await contract.setVariable("status", DEATH_CLAIMED);
+      await expect(contract.finalizeClaim()).to.be.revertedWith("caller is not heir");
+    });
 
-    it("should revert if called by a non-participant", async () => {});
+    it("should revert if called by a non-participant", async () => {
+      const { contract, randomUser } = await setup();
+      await contract.setVariable("status", DEATH_CLAIMED);
+      await expect(contract.connect(randomUser).finalizeClaim()).to.be.revertedWith("caller is not heir");
+    });
 
-    it("should revert if the wallet status is ALIVE", async () => {});
+    it("should revert if the wallet status is ALIVE", async () => {
+      const { contract, heir1 } = await setup();
+      await contract.setVariable("status", ALIVE);
+      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith("claim has not yet been initialized");
+    });
 
-    it("should revert if the wallet status is DEAD", async () => {});
+    it("should revert if the wallet status is DEAD", async () => {
+      const { contract, heir1 } = await setup();
+      await contract.setVariable("status", DEAD);
+      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith("claim has already been finalized");
+    });
 
-    it("should revert if the claim has been vetoed", async () => {});
+    it("should revert if the the veto period has not fully elapsed", async () => {
+      const { contract, heir1 } = await setup();
+      await contract.connect(heir1).initiateClaim();
+      expect(await contract.status()).to.eq(DEATH_CLAIMED);
+      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith("claim has been initialized too recently");
+    });
   });
 
   describe("vetoClaim", function () {
