@@ -97,6 +97,7 @@ contract HeirWallet is Ownable {
 
     /// For the owner to remove an heir
     function removeHeir(address a) public onlyOwner {
+        require(heirs[a], "not an heir");
         heirs[a] = false;
         heirCount = heirCount - 1;
     }
@@ -114,15 +115,15 @@ contract HeirWallet is Ownable {
 
     /// For an heir to assert that a claim of death has gone undisputed
     function finalizeClaim() public onlyHeir {
-        require(status == DEATH_CLAIMED);
-        require(claimStarted + vetoThreshold < block.timestamp);
+        require(status == DEATH_CLAIMED, "claim has not yet been initialized");
+        require(claimStarted + vetoThreshold < block.timestamp, "claim has been initialized too recently");
         status = DEAD;
     }
 
     /// For an owner or heir to veto a claim of death
     function vetoClaim() public {
-        require(heirs[msg.sender] == true || msg.sender == owner());
-        require(status == DEATH_CLAIMED);
+        require(heirs[msg.sender] == true || msg.sender == owner(), "no power to veto");
+        require(status == DEATH_CLAIMED, "claim has not yet been initialized");
         status = ALIVE;
     }
 
