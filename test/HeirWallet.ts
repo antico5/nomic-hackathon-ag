@@ -3,6 +3,9 @@ import { ethers } from "hardhat";
 import { smock } from "@defi-wonderland/smock";
 
 const ETHER = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+const ALIVE = BigInt(1);
+const DEATH_CLAIMED = BigInt(2);
+const DEAD = BigInt(3);
 
 describe("HeirWallet", function () {
   async function setup() {
@@ -19,7 +22,7 @@ describe("HeirWallet", function () {
       vetoThreshold
     );
 
-    expect(await contract.status()).to.equal(1);
+    expect(await contract.status()).to.equal(ALIVE);
 
     const mockCallableFactory = await ethers.getContractFactory(
       "MockCallableContract"
@@ -106,26 +109,26 @@ describe("HeirWallet", function () {
   describe("distributeEther", function () {
     it("is only callable when the wallet is dead", async () => {
       const { contract, heir1 } = await setup();
-      await contract.setVariable("status", 1);
+      await contract.setVariable("status", ALIVE);
 
       await expect(contract.connect(heir1).distributeEther()).to.revertedWith(
         "wallet is not dead"
       );
 
-      await contract.setVariable("status", 2);
+      await contract.setVariable("status", DEATH_CLAIMED);
 
       await expect(contract.connect(heir1).distributeEther()).to.revertedWith(
         "wallet is not dead"
       );
 
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       await contract.connect(heir1).distributeEther();
     });
 
     it("is only callable by heirs", async () => {
       const { owner, contract, heir1 } = await setup();
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       await expect(contract.connect(owner).distributeEther()).to.revertedWith(
         "caller is not heir"
@@ -136,7 +139,7 @@ describe("HeirWallet", function () {
 
     it("cant be called if the user already withdrew eth", async () => {
       const { contract, heir1 } = await setup();
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       await contract.setVariable("heirsWithdrawn", {
         [heir1.address]: {
@@ -160,7 +163,7 @@ describe("HeirWallet", function () {
     it("loads the ether balance if it wasn't initialized already", async () => {
       const { contract, heir1 } = await setup();
       await heir1.sendTransaction({ to: contract.address, value: 1337 });
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       expect(await contract.originalAssetBalance(ETHER)).to.eq(0);
       await contract.connect(heir1).distributeEther();
@@ -170,7 +173,7 @@ describe("HeirWallet", function () {
     it("doesnt load the ether balance if it was initialized already", async () => {
       const { contract, heir1 } = await setup();
       await heir1.sendTransaction({ to: contract.address, value: 1337 });
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
       await contract.setVariable("originalAssetBalance", { [ETHER]: 123 });
 
       expect(await contract.originalAssetBalance(ETHER)).to.eq(123);
@@ -180,7 +183,7 @@ describe("HeirWallet", function () {
 
     it("marks that the heir withdrew ether", async () => {
       const { contract, heir1 } = await setup();
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       expect(await contract.heirsWithdrawn(heir1.address, ETHER)).to.eq(false);
       await contract.connect(heir1).distributeEther();
@@ -189,7 +192,7 @@ describe("HeirWallet", function () {
 
     it("sends the fraction of ether that belongs to the calling heir", async () => {
       const { contract, heir1, owner } = await setup();
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       await owner.sendTransaction({ to: contract.address, value: 90 });
 
@@ -202,26 +205,26 @@ describe("HeirWallet", function () {
   describe("distributeToken", function () {
     it("is only callable when the wallet is dead", async () => {
       const { contract, heir1, token } = await setup();
-      await contract.setVariable("status", 1);
+      await contract.setVariable("status", ALIVE);
 
       await expect(
         contract.connect(heir1).distributeToken(token.address)
       ).to.revertedWith("wallet is not dead");
 
-      await contract.setVariable("status", 2);
+      await contract.setVariable("status", DEATH_CLAIMED);
 
       await expect(
         contract.connect(heir1).distributeToken(token.address)
       ).to.revertedWith("wallet is not dead");
 
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       await contract.connect(heir1).distributeToken(token.address);
     });
 
     it("is only callable by heirs", async () => {
       const { owner, contract, heir1, token } = await setup();
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       await expect(
         contract.connect(owner).distributeToken(token.address)
@@ -232,7 +235,7 @@ describe("HeirWallet", function () {
 
     it("cant be called if the user already withdrew the token", async () => {
       const { contract, heir1, token } = await setup();
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       await contract.setVariable("heirsWithdrawn", {
         [heir1.address]: {
@@ -256,7 +259,7 @@ describe("HeirWallet", function () {
     it("loads the token balance if it wasn't initialized already", async () => {
       const { contract, heir1, token } = await setup();
       await token.mint(contract.address, 1337);
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       expect(await contract.originalAssetBalance(token.address)).to.eq(0);
       await contract.connect(heir1).distributeToken(token.address);
@@ -267,7 +270,7 @@ describe("HeirWallet", function () {
       const { contract, heir1, token } = await setup();
       await token.mint(contract.address, 1337);
 
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
       await contract.setVariable("originalAssetBalance", {
         [token.address]: 123,
       });
@@ -279,7 +282,7 @@ describe("HeirWallet", function () {
 
     it("marks that the heir withdrew the token", async () => {
       const { contract, heir1, token } = await setup();
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       expect(await contract.heirsWithdrawn(heir1.address, token.address)).to.eq(
         false
@@ -292,7 +295,7 @@ describe("HeirWallet", function () {
 
     it("sends the fraction of token that belongs to the calling heir", async () => {
       const { contract, heir1, token } = await setup();
-      await contract.setVariable("status", 3);
+      await contract.setVariable("status", DEAD);
 
       await token.mint(contract.address, 90);
 
@@ -354,7 +357,7 @@ describe("HeirWallet", function () {
     it("should allow initiation of a claim", async () => {
       const { heir1, contract, provider } = await setup();
       const receipt = await contract.connect(heir1).initiateClaim();
-      expect(await contract.status()).to.eq(2);
+      expect(await contract.status()).to.eq(DEATH_CLAIMED);
 
       const block = await provider.getBlock(receipt.blockHash);
       const timestamp = block.timestamp;
@@ -365,29 +368,29 @@ describe("HeirWallet", function () {
       const { contract } = await setup();
       await expect(contract.initiateClaim())
         .to.be.revertedWith("caller is not heir");
-      expect(await contract.status()).to.equal(1);
+      expect(await contract.status()).to.equal(ALIVE);
     });
 
     it("should revert if called by a non-participant", async () => {
       const { contract, randomUser } = await setup();
       await expect(contract.connect(randomUser).initiateClaim())
         .to.be.revertedWith("caller is not heir");
-      expect(await contract.status()).to.equal(1);
+      expect(await contract.status()).to.equal(ALIVE);
       expect(await contract.claimStarted()).to.eq(0);
     });
 
     it("should revert if the wallet status is DEATH_CLAIMED", async () => {
       const { contract, heir1 } = await setup();
-      await contract.setVariable("status", BigInt(2));
+      await contract.setVariable("status", DEATH_CLAIMED);
       await expect(contract.connect(heir1).initiateClaim())
         .to.be.revertedWith("wallet is not alive");
-      expect(await contract.status()).to.equal(2);
+      expect(await contract.status()).to.equal(DEATH_CLAIMED);
       expect(await contract.claimStarted()).to.eq(0);
     });
 
     it("should revert if the wallet status is DEAD", async () => {
       const { contract, heir1 } = await setup();
-      await contract.setVariable("status", 3n);
+      await contract.setVariable("status", DEAD);
       await expect(contract.connect(heir1).initiateClaim())
         .to.be.revertedWith("wallet is not alive");
       expect(await contract.claimStarted()).to.eq(0);
@@ -405,7 +408,7 @@ describe("HeirWallet", function () {
 
       await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith("owner has invoked call() too recently");
 
-      expect(await contract.status()).to.eq(1);
+      expect(await contract.status()).to.eq(ALIVE);
       expect(await contract.claimStarted()).to.eq(0);
     });
   });
