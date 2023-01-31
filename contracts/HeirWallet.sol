@@ -11,23 +11,18 @@ uint constant DEAD = 3;
 address constant ETHER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
 contract HeirWallet is Ownable {
+    // State
     uint public status;
-
     mapping(address => bool) public heirs;
-
     uint public lastOwnerCall;
-
     uint public claimStarted;
-
     mapping(address => mapping(address => bool)) public heirsWithdrawn; // heir => asset => bool
-
     mapping(address => uint) public originalAssetBalance;
-
     uint public immutable inactivityThreshold;
     uint public immutable vetoThreshold;
-
     uint public heirCount;
 
+    // Events
     event HeirAdded(address indexed heir);
     event HeirRemoved(address indexed heir);
     event ClaimInitiated(address indexed who);
@@ -40,19 +35,9 @@ contract HeirWallet is Ownable {
         uint amount
     );
 
-    constructor(uint _inactivityThreshold, uint _vetoThreshold) {
-        inactivityThreshold = _inactivityThreshold;
-        vetoThreshold = _vetoThreshold;
-        status = ALIVE;
-    }
-
-    function call(
-        address _dest,
-        uint _value,
-        bytes memory _data
-    ) public onlyOwner {
-        (bool success, ) = _dest.call{value: _value}(_data);
-        require(success, "call failed");
+    // Modifiers
+    modifier updateCallTimestamp() {
+        _;
         lastOwnerCall = block.timestamp;
     }
 
@@ -61,65 +46,44 @@ contract HeirWallet is Ownable {
         _;
     }
 
-    function distributeEther() external onlyHeir {
-        require(status == DEAD, "wallet is not dead");
-        require(!heirsWithdrawn[msg.sender][ETHER], "you already withdrew eth");
-
-        _ensureBalanceInitialized(ETHER);
-
-        heirsWithdrawn[msg.sender][ETHER] = true;
-        uint amount = originalAssetBalance[ETHER] / heirCount;
-        payable(msg.sender).transfer(amount);
-
-        emit EtherDistributed(msg.sender, amount);
+    // Constructor
+    constructor(uint _inactivityThreshold, uint _vetoThreshold) {
+        inactivityThreshold = _inactivityThreshold;
+        vetoThreshold = _vetoThreshold;
+        status = ALIVE;
     }
 
-    function distributeToken(address token) external onlyHeir {
-        require(status == DEAD, "wallet is not dead");
-        require(
-            !heirsWithdrawn[msg.sender][token],
-            "you already withdrew this token"
-        );
+    // Functions
 
-        _ensureBalanceInitialized(token);
-
-        heirsWithdrawn[msg.sender][token] = true;
-        uint amount = originalAssetBalance[token] / heirCount;
-        IERC20(token).transfer(msg.sender, amount);
-
-        emit TokenDistributed(msg.sender, token, amount);
-    }
-
-    function _ensureBalanceInitialized(address token) private {
-        if (originalAssetBalance[token] != 0) {
-            return;
-        }
-
-        if (token == ETHER) {
-            originalAssetBalance[token] = address(this).balance;
-        } else {
-            originalAssetBalance[token] = IERC20(token).balanceOf(
-                address(this)
-            );
-        }
+    /// Allows arbitrary calls, using this contract as a smart contract wallet
+    /// @param _dest address to call
+    /// @param _value ether value
+    /// @param _data calldata
+    function call(
+        address _dest,
+        uint _value,
+        bytes memory _data
+    ) public onlyOwner updateCallTimestamp {
+        (bool success, ) = _dest.call{value: _value}(_data);
+        require(success, "call failed");
     }
 
     /// For the owner to add an heir
-    function addHeir(address a) public onlyOwner {
-        require(!heirs[a], "already an heir");
-        heirs[a] = true;
+    function addHeir(address heir) public onlyOwner {
+        require(!heirs[heir], "already an heir");
+        heirs[heir] = true;
         heirCount = heirCount + 1;
 
-        emit HeirAdded(a);
+        emit HeirAdded(heir);
     }
 
     /// For the owner to remove an heir
-    function removeHeir(address a) public onlyOwner {
-        require(heirs[a], "not an heir");
-        heirs[a] = false;
+    function removeHeir(address heir) public onlyOwner {
+        require(heirs[heir], "not an heir");
+        heirs[heir] = false;
         heirCount = heirCount - 1;
 
-        emit HeirRemoved(a);
+        emit HeirRemoved(heir);
     }
 
     /// For an heir to claim that the owner has died
@@ -148,9 +112,60 @@ contract HeirWallet is Ownable {
         emit ClaimFinalized(msg.sender);
     }
 
+    /// Heirs get their share of the ether
+    function distributeEther() external onlyHeir {
+        require(status == DEAD, "wallet is not dead");
+        require(!heirsWithdrawn[msg.sender][ETHER], "you already withdrew eth");
+
+        _ensureBalanceInitialized(ETHER);
+
+        heirsWithdrawn[msg.sender][ETHER] = true;
+        uint amount = originalAssetBalance[ETHER] / heirCount;
+        payable(msg.sender).transfer(amount);
+
+        emit EtherDistributed(msg.sender, amount);
+    }
+
+    /// Heirs get their share of a token
+    /// @param token token to distribute
+    function distributeToken(address token) external onlyHeir {
+        require(status == DEAD, "wallet is not dead");
+        require(
+            !heirsWithdrawn[msg.sender][token],
+            "you already withdrew this token"
+        );
+
+        _ensureBalanceInitialized(token);
+
+        heirsWithdrawn[msg.sender][token] = true;
+        uint amount = originalAssetBalance[token] / heirCount;
+        IERC20(token).transfer(msg.sender, amount);
+
+        emit TokenDistributed(msg.sender, token, amount);
+    }
+
+    /// Store the wallet's balance of a given token, only once before distribution
+    /// @param token token address
+    function _ensureBalanceInitialized(address token) private {
+        if (originalAssetBalance[token] != 0) {
+            return;
+        }
+
+        if (token == ETHER) {
+            originalAssetBalance[token] = address(this).balance;
+        } else {
+            originalAssetBalance[token] = IERC20(token).balanceOf(
+                address(this)
+            );
+        }
+    }
+
     /// For an owner or heir to veto a claim of death
     function vetoClaim() public {
-        require(heirs[msg.sender] == true || msg.sender == owner(), "no power to veto");
+        require(
+            heirs[msg.sender] == true || msg.sender == owner(),
+            "no power to veto"
+        );
         require(status != ALIVE, "claim has not yet been initialized");
         require(status != DEAD, "claim has already been finalized");
         status = ALIVE;
