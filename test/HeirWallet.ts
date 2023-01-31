@@ -334,6 +334,13 @@ describe("HeirWallet", function () {
         contract.connect(heir1).removeHeir(heir1.address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
+
+    it("should revert if the given address is not an heir", async () => {
+      const { contract, randomUser } = await setup();
+      await expect(
+        contract.removeHeir(randomUser.address)
+      ).to.be.revertedWith("not an heir");
+    });
   });
 
   describe("initiateClaim", function () {
