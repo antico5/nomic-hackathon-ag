@@ -199,6 +199,17 @@ describe("HeirWallet", function () {
         contract.connect(heir1).distributeEther()
       ).to.changeEtherBalance(heir1, 30);
     });
+
+    it("emits an EtherDistributed event", async () => {
+      const { contract, heir1, owner } = await setup();
+      await contract.setVariable("status", DEAD);
+
+      await owner.sendTransaction({ to: contract.address, value: 90 });
+
+      await expect(contract.connect(heir1).distributeEther())
+        .to.emit(contract, "EtherDistributed")
+        .withArgs(heir1.address, 30);
+    });
   });
 
   describe("distributeToken", function () {
@@ -302,6 +313,17 @@ describe("HeirWallet", function () {
         contract.connect(heir1).distributeToken(token.address)
       ).to.changeTokenBalance(token, heir1.address, 30);
     });
+
+    it("emits a TokenDistributed event", async () => {
+      const { contract, heir1, token } = await setup();
+      await contract.setVariable("status", DEAD);
+
+      await token.mint(contract.address, 90);
+
+      await expect(contract.connect(heir1).distributeToken(token.address))
+        .to.emit(contract, "TokenDistributed")
+        .withArgs(heir1.address, token.address, 30);
+    });
   });
 
   describe("addHeir", function () {
@@ -329,6 +351,13 @@ describe("HeirWallet", function () {
       expect(await contract.heirs(heir1.address)).to.eq(true);
       expect(await contract.heirCount()).eq(3);
     });
+
+    it("emits a HeirAdded event", async () => {
+      const { randomUser, contract } = await setup();
+      await expect(contract.addHeir(randomUser.address))
+        .to.emit(contract, "HeirAdded")
+        .withArgs(randomUser.address);
+    });
   });
 
   describe("removeHeir", function () {
@@ -351,6 +380,13 @@ describe("HeirWallet", function () {
       await expect(contract.removeHeir(randomUser.address)).to.be.revertedWith(
         "not an heir"
       );
+    });
+
+    it("emits a HeirRemoved event", async () => {
+      const { heir1, contract } = await setup();
+      await expect(contract.removeHeir(heir1.address))
+        .to.emit(contract, "HeirRemoved")
+        .withArgs(heir1.address);
     });
   });
 
@@ -418,6 +454,13 @@ describe("HeirWallet", function () {
       expect(await contract.status()).to.eq(ALIVE);
       expect(await contract.claimStarted()).to.eq(0);
     });
+
+    it("emits a ClaimInitiated event", async () => {
+      const { heir1, contract } = await setup();
+      await expect(contract.connect(heir1).initiateClaim())
+        .to.emit(contract, "ClaimInitiated")
+        .withArgs(heir1.address);
+    });
   });
 
   describe("finalizeClaim", function () {
@@ -431,32 +474,50 @@ describe("HeirWallet", function () {
     it("should revert if called by the owner", async () => {
       const { contract } = await setup();
       await contract.setVariable("status", DEATH_CLAIMED);
-      await expect(contract.finalizeClaim()).to.be.revertedWith("caller is not heir");
+      await expect(contract.finalizeClaim()).to.be.revertedWith(
+        "caller is not heir"
+      );
     });
 
     it("should revert if called by a non-participant", async () => {
       const { contract, randomUser } = await setup();
       await contract.setVariable("status", DEATH_CLAIMED);
-      await expect(contract.connect(randomUser).finalizeClaim()).to.be.revertedWith("caller is not heir");
+      await expect(
+        contract.connect(randomUser).finalizeClaim()
+      ).to.be.revertedWith("caller is not heir");
     });
 
     it("should revert if the wallet status is ALIVE", async () => {
       const { contract, heir1 } = await setup();
       await contract.setVariable("status", ALIVE);
-      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith("claim has not yet been initialized");
+      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith(
+        "claim has not yet been initialized"
+      );
     });
 
     it("should revert if the wallet status is DEAD", async () => {
       const { contract, heir1 } = await setup();
       await contract.setVariable("status", DEAD);
-      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith("claim has already been finalized");
+      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith(
+        "claim has already been finalized"
+      );
     });
 
     it("should revert if the the veto period has not fully elapsed", async () => {
       const { contract, heir1 } = await setup();
       await contract.connect(heir1).initiateClaim();
       expect(await contract.status()).to.eq(DEATH_CLAIMED);
-      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith("claim has been initialized too recently");
+      await expect(contract.connect(heir1).finalizeClaim()).to.be.revertedWith(
+        "claim has been initialized too recently"
+      );
+    });
+
+    it("emits a ClaimFinalized event", async () => {
+      const { heir1, contract } = await setup();
+      await contract.setVariable("status", DEATH_CLAIMED);
+      await expect(contract.connect(heir1).finalizeClaim())
+        .to.emit(contract, "ClaimFinalized")
+        .withArgs(heir1.address);
     });
   });
 
