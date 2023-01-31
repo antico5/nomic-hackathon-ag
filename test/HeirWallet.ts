@@ -1,20 +1,19 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { smock } from "@defi-wonderland/smock";
+import { time, setBalance } from "@nomicfoundation/hardhat-network-helpers";
 
 const ETHER = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const ALIVE = BigInt(1);
 const DEATH_CLAIMED = BigInt(2);
 const DEAD = BigInt(3);
+const inactivityThreshold = 2 * 30 * 24 * 60 * 60; // 2 months
+const vetoThreshold = 1 * 30 * 24 * 60 * 60; // 1 month
 
 describe("HeirWallet", function () {
   async function setup() {
     // Contracts are deployed using the first signer/account by default
     const [owner, heir1, heir2, heir3, randomUser] = await ethers.getSigners();
-
-    const inactivityThreshold = 2 * 30 * 24 * 60 * 60; // 2 months
-
-    const vetoThreshold = 1 * 30 * 24 * 60 * 60; // 1 month
 
     const contractFactory = await smock.mock("HeirWallet");
     const contract = await contractFactory.deploy(
@@ -324,7 +323,9 @@ describe("HeirWallet", function () {
 
     it("should revert if the heir has already been added", async () => {
       const { heir1, contract } = await setup();
-      await expect(contract.addHeir(heir1.address)).to.be.revertedWith("already an heir");
+      await expect(contract.addHeir(heir1.address)).to.be.revertedWith(
+        "already an heir"
+      );
       expect(await contract.heirs(heir1.address)).to.eq(true);
       expect(await contract.heirCount()).eq(3);
     });
@@ -347,9 +348,9 @@ describe("HeirWallet", function () {
 
     it("should revert if the given address is not an heir", async () => {
       const { contract, randomUser } = await setup();
-      await expect(
-        contract.removeHeir(randomUser.address)
-      ).to.be.revertedWith("not an heir");
+      await expect(contract.removeHeir(randomUser.address)).to.be.revertedWith(
+        "not an heir"
+      );
     });
   });
 
@@ -366,15 +367,17 @@ describe("HeirWallet", function () {
 
     it("should revert if called by the owner", async () => {
       const { contract } = await setup();
-      await expect(contract.initiateClaim())
-        .to.be.revertedWith("caller is not heir");
+      await expect(contract.initiateClaim()).to.be.revertedWith(
+        "caller is not heir"
+      );
       expect(await contract.status()).to.equal(ALIVE);
     });
 
     it("should revert if called by a non-participant", async () => {
       const { contract, randomUser } = await setup();
-      await expect(contract.connect(randomUser).initiateClaim())
-        .to.be.revertedWith("caller is not heir");
+      await expect(
+        contract.connect(randomUser).initiateClaim()
+      ).to.be.revertedWith("caller is not heir");
       expect(await contract.status()).to.equal(ALIVE);
       expect(await contract.claimStarted()).to.eq(0);
     });
@@ -382,8 +385,9 @@ describe("HeirWallet", function () {
     it("should revert if the wallet status is DEATH_CLAIMED", async () => {
       const { contract, heir1 } = await setup();
       await contract.setVariable("status", DEATH_CLAIMED);
-      await expect(contract.connect(heir1).initiateClaim())
-        .to.be.revertedWith("wallet is not alive");
+      await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith(
+        "wallet is not alive"
+      );
       expect(await contract.status()).to.equal(DEATH_CLAIMED);
       expect(await contract.claimStarted()).to.eq(0);
     });
@@ -391,8 +395,9 @@ describe("HeirWallet", function () {
     it("should revert if the wallet status is DEAD", async () => {
       const { contract, heir1 } = await setup();
       await contract.setVariable("status", DEAD);
-      await expect(contract.connect(heir1).initiateClaim())
-        .to.be.revertedWith("wallet is not alive");
+      await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith(
+        "wallet is not alive"
+      );
       expect(await contract.claimStarted()).to.eq(0);
     });
 
@@ -406,7 +411,9 @@ describe("HeirWallet", function () {
 
       await contract.call(mockCallableContract.address, 99, "0x12");
 
-      await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith("owner has invoked call() too recently");
+      await expect(contract.connect(heir1).initiateClaim()).to.be.revertedWith(
+        "owner has invoked call() too recently"
+      );
 
       expect(await contract.status()).to.eq(ALIVE);
       expect(await contract.claimStarted()).to.eq(0);
@@ -414,36 +421,120 @@ describe("HeirWallet", function () {
   });
 
   describe("finalizeClaim", function () {
-    it("should allow finalization of a claim", async () => {
-    });
+    it("should allow finalization of a claim", async () => {});
 
-    it("should revert if called by the owner", async () => {
-    });
+    it("should revert if called by the owner", async () => {});
 
-    it("should revert if called by a non-participant", async () => {
-    });
+    it("should revert if called by a non-participant", async () => {});
 
-    it("should revert if the wallet status is ALIVE", async () => {
-    });
+    it("should revert if the wallet status is ALIVE", async () => {});
 
-    it("should revert if the wallet status is DEAD", async () => {
-    });
+    it("should revert if the wallet status is DEAD", async () => {});
 
-    it("should revert if the claim has been vetoed", async () => {
-    });
+    it("should revert if the claim has been vetoed", async () => {});
   });
 
   describe("vetoClaim", function () {
-    it("should allow the owner to veto a claim", async () => {
-    });
+    it("should allow the owner to veto a claim", async () => {});
 
-    it("should allow a second heir to veto a claim", async () => {
-    });
+    it("should allow a second heir to veto a claim", async () => {});
 
-    it("should revert if the wallet status is ALIVE", async () => {
-    });
+    it("should revert if the wallet status is ALIVE", async () => {});
 
-    it("should revert if the wallet status is DEAD", async () => {
+    it("should revert if the wallet status is DEAD", async () => {});
+  });
+
+  describe("integration tests", function () {
+    it("complex test scenario", async () => {
+      const {
+        contractFactory,
+        owner,
+        heir1,
+        heir2,
+        heir3,
+        randomUser,
+        token,
+        provider,
+      } = await setup();
+
+      // Deploy the wallet
+      const wallet = await contractFactory.deploy(
+        inactivityThreshold,
+        vetoThreshold
+      );
+
+      // Fund the wallet with ether and tokens
+      await owner.sendTransaction({ to: wallet.address, value: 90 });
+      await token.mint(wallet.address, 90);
+
+      expect(await provider.getBalance(wallet.address)).eq(90);
+      expect(await token.balanceOf(wallet.address)).eq(90);
+
+      // make a call, transfering 30 wei from the wallet to a random user
+      await expect(
+        wallet.call(randomUser.address, 30, "0x")
+      ).to.changeEtherBalances([wallet.address, randomUser.address], [-30, 30]);
+
+      // Add heirs
+      await wallet.addHeir(heir1.address);
+      await wallet.addHeir(heir2.address);
+      await wallet.addHeir(heir3.address);
+
+      expect(await wallet.heirs(heir1.address)).eq(true);
+      expect(await wallet.heirs(heir2.address)).eq(true);
+      expect(await wallet.heirs(heir3.address)).eq(true);
+      expect(await wallet.heirCount()).to.eq(3);
+
+      // try to initiate claim incorrectly
+      await expect(wallet.connect(heir1).initiateClaim()).to.revertedWith(
+        "owner has invoked call() too recently"
+      );
+
+      await time.increase(inactivityThreshold);
+
+      // initiate claim correctly
+      await wallet.connect(heir1).initiateClaim();
+      expect(await wallet.status()).to.eq(DEATH_CLAIMED);
+
+      // try to finalize it incorrectly (2nd heir)
+      await expect(wallet.connect(heir2).finalizeClaim()).to.revertedWith(
+        "claim has been initialized too recently"
+      );
+
+      // veto it (3rd heir)
+      await wallet.connect(heir3).vetoClaim();
+      expect(await wallet.status()).to.eq(ALIVE);
+
+      // initiate claim again
+      await wallet.connect(heir1).initiateClaim();
+      expect(await wallet.status()).to.eq(DEATH_CLAIMED);
+
+      // some time passses, and claim is finalized correctly
+      await time.increase(vetoThreshold);
+      await wallet.connect(heir3).finalizeClaim();
+      expect(await wallet.status()).to.eq(DEAD);
+
+      // all heirs claim their ether
+      await expect(
+        wallet.connect(heir1).distributeEther()
+      ).to.changeEtherBalance(heir1.address, 20);
+      await expect(
+        wallet.connect(heir2).distributeEther()
+      ).to.changeEtherBalance(heir2.address, 20);
+      await expect(
+        wallet.connect(heir3).distributeEther()
+      ).to.changeEtherBalance(heir3.address, 20);
+
+      // all heirs claim their tokens
+      await expect(
+        wallet.connect(heir1).distributeToken(token.address)
+      ).to.changeTokenBalance(token, heir1.address, 30);
+      await expect(
+        wallet.connect(heir2).distributeToken(token.address)
+      ).to.changeTokenBalance(token, heir2.address, 30);
+      await expect(
+        wallet.connect(heir3).distributeToken(token.address)
+      ).to.changeTokenBalance(token, heir3.address, 30);
     });
   });
 });

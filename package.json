@@ -7,6 +7,7 @@
   "dependencies": {
     "@defi-wonderland/smock": "^2.3.4",
     "@ignored/hardhat-ignition": "^0.0.6",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.7",
     "@openzeppelin/contracts": "^4.8.1"
   },
   "scripts": {
