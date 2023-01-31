@@ -522,13 +522,36 @@ describe("HeirWallet", function () {
   });
 
   describe("vetoClaim", function () {
-    it("should allow the owner to veto a claim", async () => {});
+    it("should allow the owner to veto a claim", async () => {
+      const { contract, heir1 } = await setup();
+      await contract.connect(heir1).initiateClaim();
+      await contract.vetoClaim();
+      expect(await contract.status()).to.eq(ALIVE);
+    });
 
-    it("should allow a second heir to veto a claim", async () => {});
+    it("should allow a second heir to veto a claim", async () => {
+      const { contract, heir1, heir2 } = await setup();
+      await contract.connect(heir1).initiateClaim();
+      await contract.connect(heir2).vetoClaim();
+      expect(await contract.status()).to.eq(ALIVE);
+    });
 
-    it("should revert if the wallet status is ALIVE", async () => {});
+    it("should revert if sender is neither an heir nor an owner", async () => {
+      const { contract, heir1, randomUser } = await setup();
+      await contract.connect(heir1).initiateClaim();
+      await expect(contract.connect(randomUser).vetoClaim()).to.be.revertedWith("no power to veto");
+    });
 
-    it("should revert if the wallet status is DEAD", async () => {});
+    it("should revert if the wallet status is ALIVE", async () => {
+      const { contract } = await setup();
+      await expect(contract.vetoClaim()).to.be.revertedWith("claim has not yet been initialized");
+    });
+
+    it("should revert if the wallet status is DEAD", async () => {
+      const { contract } = await setup();
+      await contract.setVariable("status", DEAD);
+      await expect(contract.vetoClaim()).to.be.revertedWith("claim has already been finalized");
+    });
   });
 
   describe("integration tests", function () {

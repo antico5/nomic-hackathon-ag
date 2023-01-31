@@ -150,11 +150,9 @@ contract HeirWallet is Ownable {
 
     /// For an owner or heir to veto a claim of death
     function vetoClaim() public {
-        require(
-            heirs[msg.sender] == true || msg.sender == owner(),
-            "no power to veto"
-        );
-        require(status == DEATH_CLAIMED, "claim has not yet been initialized");
+        require(heirs[msg.sender] == true || msg.sender == owner(), "no power to veto");
+        require(status != ALIVE, "claim has not yet been initialized");
+        require(status != DEAD, "claim has already been finalized");
         status = ALIVE;
 
         emit ClaimVetoed(msg.sender);
