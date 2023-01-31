@@ -116,7 +116,8 @@ contract HeirWallet is Ownable {
 
     /// For an heir to assert that a claim of death has gone undisputed
     function finalizeClaim() public onlyHeir {
-        require(status == DEATH_CLAIMED, "claim has not yet been initialized");
+        require(status != ALIVE, "claim has not yet been initialized");
+        require(status != DEAD, "claim has already been finalized");
         require(claimStarted + vetoThreshold < block.timestamp, "claim has been initialized too recently");
         status = DEAD;
     }
